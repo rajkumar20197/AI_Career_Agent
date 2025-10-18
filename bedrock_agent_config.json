@@ -1,0 +1,237 @@
+{
+  "agentName": "AI-Career-Agent",
+  "description": "Autonomous AI agent that manages the entire job application lifecycle for students and new graduates",
+  "foundationModel": "anthropic.claude-3-sonnet-20240229-v1:0",
+  "instruction": "You are an AI Career Agent designed to help students and new graduates find and secure their dream jobs. Your primary responsibilities include:\n\n1. STUDENT ASSESSMENT: Analyze graduation timelines and provide personalized guidance based on time remaining until graduation\n2. MARKET INTELLIGENCE: Provide real-time job market insights, salary data, and career growth projections\n3. JOB DISCOVERY: Autonomously search multiple job boards daily to find relevant opportunities\n4. APPLICATION OPTIMIZATION: Tailor resumes and cover letters for each specific job application\n5. INTERVIEW PREPARATION: Generate personalized interview materials and practice questions\n6. CAREER GUIDANCE: Offer strategic advice on skill development and career progression\n\nKey Behaviors:\n- Always prioritize the user's career goals and timeline\n- Provide data-driven insights and recommendations\n- Maintain a supportive and encouraging tone\n- Focus on actionable advice and concrete next steps\n- Respect user privacy and handle personal information securely\n\nWhen interacting with users:\n- Ask clarifying questions to understand their specific needs\n- Provide personalized recommendations based on their profile\n- Explain your reasoning behind suggestions\n- Offer multiple options when appropriate\n- Follow up on previous recommendations and track progress",
+  "idleSessionTTLInSeconds": 1800,
+  "agentResourceRoleArn": "arn:aws:iam::ACCOUNT_ID:role/AmazonBedrockExecutionRoleForAgents_AI_Career_Agent",
+  "actionGroups": [
+    {
+      "actionGroupName": "MarketIntelligenceActions",
+      "description": "Actions for gathering and analyzing job market data",
+      "actionGroupExecutor": {
+        "lambda": "arn:aws:lambda:us-east-1:ACCOUNT_ID:function:market-intelligence-function"
+      },
+      "apiSchema": {
+        "payload": {
+          "openAPISpecification": {
+            "openapi": "3.0.0",
+            "info": {
+              "title": "Market Intelligence API",
+              "version": "1.0.0"
+            },
+            "paths": {
+              "/market-analysis": {
+                "post": {
+                  "summary": "Get comprehensive market intelligence for a job domain",
+                  "operationId": "getMarketIntelligence",
+                  "requestBody": {
+                    "required": true,
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "job_domain": {
+                              "type": "string",
+                              "description": "The job domain to analyze (e.g., Software Engineering, Data Science)"
+                            },
+                            "location": {
+                              "type": "string",
+                              "description": "Geographic location for market analysis"
+                            },
+                            "experience_level": {
+                              "type": "string",
+                              "description": "Experience level (Entry Level, Mid Level, Senior Level)"
+                            }
+                          },
+                          "required": ["job_domain"]
+                        }
+                      }
+                    }
+                  },
+                  "responses": {
+                    "200": {
+                      "description": "Market intelligence data",
+                      "content": {
+                        "application/json": {
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "market_data": {
+                                "type": "object"
+                              },
+                              "ai_insights": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "actionGroupName": "JobSearchActions",
+      "description": "Actions for searching and matching job opportunities",
+      "actionGroupExecutor": {
+        "lambda": "arn:aws:lambda:us-east-1:ACCOUNT_ID:function:job-search-agent-function"
+      },
+      "apiSchema": {
+        "payload": {
+          "openAPISpecification": {
+            "openapi": "3.0.0",
+            "info": {
+              "title": "Job Search API",
+              "version": "1.0.0"
+            },
+            "paths": {
+              "/job-search": {
+                "post": {
+                  "summary": "Search for jobs matching user profile",
+                  "operationId": "searchJobs",
+                  "requestBody": {
+                    "required": true,
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "user_profile": {
+                              "type": "object",
+                              "description": "User profile with preferences and skills"
+                            },
+                            "search_params": {
+                              "type": "object",
+                              "description": "Additional search parameters"
+                            }
+                          },
+                          "required": ["user_profile"]
+                        }
+                      }
+                    }
+                  },
+                  "responses": {
+                    "200": {
+                      "description": "Matched job opportunities",
+                      "content": {
+                        "application/json": {
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "matched_jobs": {
+                                "type": "array"
+                              },
+                              "total_found": {
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "actionGroupName": "ResumeOptimizationActions",
+      "description": "Actions for optimizing resumes and cover letters",
+      "actionGroupExecutor": {
+        "lambda": "arn:aws:lambda:us-east-1:ACCOUNT_ID:function:resume-optimizer-function"
+      },
+      "apiSchema": {
+        "payload": {
+          "openAPISpecification": {
+            "openapi": "3.0.0",
+            "info": {
+              "title": "Resume Optimization API",
+              "version": "1.0.0"
+            },
+            "paths": {
+              "/optimize-resume": {
+                "post": {
+                  "summary": "Optimize resume for specific job application",
+                  "operationId": "optimizeResume",
+                  "requestBody": {
+                    "required": true,
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "user_resume": {
+                              "type": "string",
+                              "description": "Original resume content"
+                            },
+                            "job_description": {
+                              "type": "string",
+                              "description": "Job description to optimize for"
+                            },
+                            "job_title": {
+                              "type": "string",
+                              "description": "Job title"
+                            },
+                            "company_name": {
+                              "type": "string",
+                              "description": "Company name"
+                            },
+                            "user_profile": {
+                              "type": "object",
+                              "description": "User profile information"
+                            }
+                          },
+                          "required": ["user_resume", "job_description"]
+                        }
+                      }
+                    }
+                  },
+                  "responses": {
+                    "200": {
+                      "description": "Optimized resume and cover letter",
+                      "content": {
+                        "application/json": {
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "optimized_resume": {
+                                "type": "object"
+                              },
+                              "cover_letter": {
+                                "type": "object"
+                              },
+                              "application_insights": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "knowledgeBases": [
+    {
+      "knowledgeBaseId": "KB_ID_PLACEHOLDER",
+      "description": "Career guidance and industry insights knowledge base",
+      "knowledgeBaseState": "ENABLED"
+    }
+  ]
+}
