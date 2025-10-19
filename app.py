@@ -363,20 +363,20 @@ def render_graduation_popup():
         st.session_state.show_popup = True
     
     if st.session_state.show_popup:
+        # Header
         st.markdown("""
-        <div class="modal-overlay" id="graduationModal">
-            <div class="modal-content">
-                <h2 style="text-align: center; color: var(--primary-blue); margin-bottom: 1.5rem;">
-                    🎓 Welcome to AI Career Agent
-                </h2>
-                <p style="text-align: center; margin-bottom: 2rem;">
-                    Let's personalize your career journey based on your graduation timeline
-                </p>
-            </div>
+        <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #0593A2 0%, #103778 100%); border-radius: 15px; margin-bottom: 2rem; color: white;">
+            <h1>🎓 Welcome to AI Career Agent</h1>
+            <p>Let's personalize your career journey based on your graduation timeline</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Create form in the modal area
+        # Simple test first
+        if st.button("🚀 Test Button - Click Me!"):
+            st.success("✅ Great! Buttons are working. Now let's set up your profile.")
+            st.balloons()
+        
+        # Create form
         with st.form("graduation_form", clear_on_submit=True):
             st.markdown("### 📅 Tell us about your graduation")
             
