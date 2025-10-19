@@ -267,44 +267,310 @@ def create_sample_data():
     return job_trends, salary_data, skills_data, geo_data
 
 def render_header():
-    """Render professional header with navigation"""
+    """Render professional header with functional navigation"""
+    # Initialize navigation state
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = 'Home'
+    
+    # Header with navigation buttons
     st.markdown("""
-    <div class="professional-header">
-        <div class="header-content">
-            <div class="logo-section">
+    <div style="background: linear-gradient(135deg, #0593A2 0%, #103778 100%); padding: 1rem 2rem; margin: -1rem -1rem 2rem -1rem; color: white; box-shadow: 0 4px 20px rgba(21, 31, 48, 0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
                 <span style="font-size: 2rem;">🎓</span>
-                <h1>AI Career Agent</h1>
+                <h1 style="margin: 0; font-size: 1.8rem;">AI Career Agent</h1>
             </div>
-            <div class="nav-menu">
-                <div class="nav-item">
-                    <span>🏠</span> Home
-                </div>
-                <div class="nav-item">
-                    <span>📊</span> Dashboard
-                </div>
-                <div class="nav-item">
-                    <span>💼</span> Jobs
-                </div>
-                <div class="dropdown">
-                    <div class="nav-item">
-                        <span>⚙️</span> Services ▼
-                    </div>
-                    <div class="dropdown-content">
-                        <a href="#" class="dropdown-item">🎯 Career Planning</a>
-                        <a href="#" class="dropdown-item">📝 Resume Optimization</a>
-                        <a href="#" class="dropdown-item">🔍 Job Search</a>
-                        <a href="#" class="dropdown-item">📈 Market Intelligence</a>
-                        <a href="#" class="dropdown-item">🎤 Interview Prep</a>
-                        <a href="#" class="dropdown-item">📚 Skill Development</a>
-                    </div>
-                </div>
-                <div class="nav-item">
-                    <span>📞</span> Contact
-                </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <span style="color: rgba(255,255,255,0.8);">📧 Gmail Notifications: ON</span>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Navigation buttons
+    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+    
+    with col1:
+        if st.button("🏠 Home", use_container_width=True):
+            st.session_state.current_page = 'Home'
+            st.rerun()
+    
+    with col2:
+        if st.button("📊 Dashboard", use_container_width=True):
+            st.session_state.current_page = 'Dashboard'
+            st.rerun()
+    
+    with col3:
+        if st.button("💼 Jobs", use_container_width=True):
+            st.session_state.current_page = 'Jobs'
+            st.rerun()
+    
+    with col4:
+        if st.button("🎯 Career Plan", use_container_width=True):
+            st.session_state.current_page = 'Career Plan'
+            st.rerun()
+    
+    with col5:
+        if st.button("📝 Resume", use_container_width=True):
+            st.session_state.current_page = 'Resume'
+            st.rerun()
+    
+    with col6:
+        if st.button("📧 Notifications", use_container_width=True):
+            st.session_state.current_page = 'Notifications'
+            st.rerun()
+    
+    with col7:
+        if st.button("📞 Contact", use_container_width=True):
+            st.session_state.current_page = 'Contact'
+            st.rerun()
+
+def render_page_content():
+    """Render content based on selected page"""
+    page = st.session_state.get('current_page', 'Home')
+    
+    if page == 'Home':
+        render_home_page()
+    elif page == 'Dashboard':
+        render_dashboard_page()
+    elif page == 'Jobs':
+        render_jobs_page()
+    elif page == 'Career Plan':
+        render_career_plan_page()
+    elif page == 'Resume':
+        render_resume_page()
+    elif page == 'Notifications':
+        render_notifications_page()
+    elif page == 'Contact':
+        render_contact_page()
+
+def render_home_page():
+    """Render home page content"""
+    if 'user_profile' not in st.session_state:
+        render_graduation_popup()
+    else:
+        render_personalized_dashboard()
+
+def render_dashboard_page():
+    """Render dashboard page"""
+    st.markdown("## 📊 Analytics Dashboard")
+    
+    # Generate sample data
+    job_trends, salary_data, skills_data, geo_data = create_sample_data()
+    
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🎯 Jobs Applied", "47", "+12")
+    with col2:
+        st.metric("📞 Interviews", "8", "+3")
+    with col3:
+        st.metric("✅ Response Rate", "34%", "+8%")
+    with col4:
+        st.metric("💰 Avg Salary Offer", "$125K", "+15K")
+    
+    # Charts
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        fig = px.line(job_trends.melt(id_vars=['Month'], var_name='Role', value_name='Job_Postings'),
+                     x='Month', y='Job_Postings', color='Role', title="Job Market Trends")
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        fig = px.bar(salary_data.melt(id_vars=['Experience'], var_name='Role', value_name='Salary'),
+                    x='Experience', y='Salary', color='Role', title="Salary by Experience")
+        st.plotly_chart(fig, use_container_width=True)
+
+def render_jobs_page():
+    """Render jobs page"""
+    st.markdown("## 💼 Job Search & Applications")
+    
+    # Job search filters
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        job_type = st.selectbox("Job Type", ["All", "Full-time", "Part-time", "Contract", "Internship"])
+    with col2:
+        location = st.selectbox("Location", ["All", "Remote", "San Francisco", "New York", "Seattle", "Austin"])
+    with col3:
+        experience = st.selectbox("Experience", ["All", "Entry Level", "Mid Level", "Senior Level"])
+    
+    # Job listings
+    jobs_data = pd.DataFrame({
+        'Company': ['Google', 'Microsoft', 'Amazon', 'Meta', 'Apple', 'Netflix'],
+        'Position': ['Software Engineer', 'Product Manager', 'Data Scientist', 'ML Engineer', 'iOS Developer', 'Backend Engineer'],
+        'Location': ['Mountain View, CA', 'Seattle, WA', 'Seattle, WA', 'Menlo Park, CA', 'Cupertino, CA', 'Los Gatos, CA'],
+        'Salary': ['$150K-$200K', '$140K-$180K', '$160K-$210K', '$170K-$220K', '$145K-$190K', '$155K-$205K'],
+        'Match': ['95%', '88%', '92%', '90%', '85%', '87%'],
+        'Status': ['Applied ✅', 'Saved 💾', 'Applied ✅', 'Interview 📞', 'Saved 💾', 'Applied ✅']
+    })
+    
+    st.dataframe(jobs_data, use_container_width=True)
+    
+    # Quick apply buttons
+    st.markdown("### 🚀 Quick Actions")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("📧 Send Applications", use_container_width=True):
+            st.success("✅ 5 applications sent! Gmail notifications enabled.")
+    with col2:
+        if st.button("🔍 Find More Jobs", use_container_width=True):
+            st.info("🔄 Searching 15+ job boards...")
+    with col3:
+        if st.button("📊 Generate Report", use_container_width=True):
+            st.success("📈 Weekly report generated and emailed!")
+
+def render_career_plan_page():
+    """Render career planning page"""
+    st.markdown("## 🎯 Career Planning & Roadmap")
+    
+    # Career progression timeline
+    st.markdown("### 📈 Your Career Roadmap")
+    
+    timeline_data = {
+        'Stage': ['Current', '6 Months', '1 Year', '2 Years', '5 Years'],
+        'Role': ['Student', 'Junior Developer', 'Software Engineer', 'Senior Engineer', 'Tech Lead'],
+        'Skills': ['Basic Programming', 'Full Stack Dev', 'System Design', 'Architecture', 'Team Leadership'],
+        'Salary': ['$0', '$80K', '$120K', '$160K', '$220K']
+    }
+    
+    timeline_df = pd.DataFrame(timeline_data)
+    st.dataframe(timeline_df, use_container_width=True)
+    
+    # Skills development
+    st.markdown("### 🎓 Recommended Learning Path")
+    
+    skills_to_learn = ['Python Advanced', 'System Design', 'AWS Certification', 'Leadership Skills']
+    for skill in skills_to_learn:
+        col1, col2, col3 = st.columns([3, 1, 1])
+        with col1:
+            st.write(f"**{skill}**")
+        with col2:
+            st.write("3 months")
+        with col3:
+            if st.button(f"Start {skill}", key=f"start_{skill}"):
+                st.success(f"📚 {skill} course added to your learning plan!")
+
+def render_resume_page():
+    """Render resume optimization page"""
+    st.markdown("## 📝 Resume Optimization")
+    
+    # Resume upload
+    uploaded_file = st.file_uploader("Upload your resume", type=['pdf', 'docx'])
+    
+    if uploaded_file:
+        st.success("✅ Resume uploaded successfully!")
+        
+        # Resume analysis
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📊 Resume Score")
+            st.metric("Overall Score", "78/100", "+12")
+            
+            st.markdown("### 🎯 Improvements Needed")
+            st.write("• Add more quantified achievements")
+            st.write("• Include relevant keywords")
+            st.write("• Optimize for ATS systems")
+            st.write("• Add technical skills section")
+        
+        with col2:
+            st.markdown("### 🚀 Optimization Actions")
+            if st.button("🤖 AI Optimize Resume", use_container_width=True):
+                st.success("✅ Resume optimized! New version emailed to you.")
+            
+            if st.button("📧 Email Optimized Version", use_container_width=True):
+                st.success("📧 Optimized resume sent to your Gmail!")
+            
+            if st.button("🎯 Tailor for Job", use_container_width=True):
+                st.info("🔄 Select a job posting to tailor your resume")
+
+def render_notifications_page():
+    """Render Gmail notifications page"""
+    st.markdown("## 📧 Gmail Notifications & Alerts")
+    
+    # Notification settings
+    st.markdown("### ⚙️ Notification Settings")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 📧 Email Notifications")
+        job_alerts = st.checkbox("New job matches", value=True)
+        interview_reminders = st.checkbox("Interview reminders", value=True)
+        application_updates = st.checkbox("Application status updates", value=True)
+        weekly_reports = st.checkbox("Weekly progress reports", value=True)
+        
+    with col2:
+        st.markdown("#### ⏰ Frequency")
+        frequency = st.selectbox("Email frequency", ["Immediate", "Daily digest", "Weekly summary"])
+        gmail_address = st.text_input("Gmail address", placeholder="your.email@gmail.com")
+        
+        if st.button("💾 Save Settings", use_container_width=True):
+            st.success("✅ Notification settings saved!")
+    
+    # Recent notifications
+    st.markdown("### 📬 Recent Notifications")
+    
+    notifications = [
+        {"time": "2 hours ago", "type": "🎯", "message": "New job match: Senior Developer at Google"},
+        {"time": "5 hours ago", "type": "📞", "message": "Interview reminder: Microsoft tomorrow at 2 PM"},
+        {"time": "1 day ago", "type": "✅", "message": "Application submitted: Amazon Data Scientist"},
+        {"time": "2 days ago", "type": "📊", "message": "Weekly report: 12 applications, 3 interviews"},
+    ]
+    
+    for notif in notifications:
+        st.markdown(f"**{notif['time']}** {notif['type']} {notif['message']}")
+    
+    # Gmail integration status
+    st.markdown("### 🔗 Gmail Integration Status")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("📧 Emails Sent", "47", "+12 today")
+    with col2:
+        st.metric("📬 Notifications", "156", "+8 today")
+    with col3:
+        st.metric("✅ Delivery Rate", "98.5%", "+0.2%")
+
+def render_contact_page():
+    """Render contact page"""
+    st.markdown("## 📞 Contact & Support")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 📧 Get in Touch")
+        
+        with st.form("contact_form"):
+            name = st.text_input("Your Name")
+            email = st.text_input("Email Address")
+            subject = st.selectbox("Subject", ["General Inquiry", "Technical Support", "Feature Request", "Bug Report"])
+            message = st.text_area("Message", height=150)
+            
+            if st.form_submit_button("📧 Send Message", use_container_width=True):
+                st.success("✅ Message sent! We'll respond within 24 hours.")
+    
+    with col2:
+        st.markdown("### 🚀 Support Resources")
+        
+        if st.button("📚 User Guide", use_container_width=True):
+            st.info("📖 Opening user guide...")
+        
+        if st.button("🎥 Video Tutorials", use_container_width=True):
+            st.info("🎬 Loading video tutorials...")
+        
+        if st.button("💬 Live Chat", use_container_width=True):
+            st.success("💬 Connecting to support agent...")
+        
+        if st.button("📧 Email Support", use_container_width=True):
+            st.success("📧 Opening email client...")
+        
+        st.markdown("### 📞 Contact Information")
+        st.write("📧 **Email:** support@aicareeragent.com")
+        st.write("📱 **Phone:** +1 (555) 123-4567")
+        st.write("🌐 **Website:** www.aicareeragent.com")
+        st.write("📍 **Address:** San Francisco, CA")
 
 def render_footer():
     """Render professional footer"""
@@ -589,13 +855,7 @@ def render_market_analysis_dashboard():
 def main():
     """Main application entry point"""
     render_header()
-    
-    # Check if user has completed onboarding
-    if 'user_profile' not in st.session_state:
-        render_graduation_popup()
-    else:
-        render_personalized_dashboard()
-    
+    render_page_content()
     render_footer()
 if __name__ == "__main__":
     main()
