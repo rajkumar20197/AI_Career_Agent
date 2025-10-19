@@ -1,24 +1,24 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'AI Career Agent - AWS Infrastructure for Hackathon Submission'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AI Career Agent - AWS Infrastructure for Hackathon Submission"
 
 Parameters:
   ProjectName:
     Type: String
-    Default: 'ai-career-agent'
-    Description: 'Name of the project for resource naming'
-  
+    Default: "ai-career-agent"
+    Description: "Name of the project for resource naming"
+
   Environment:
     Type: String
-    Default: 'prod'
-    AllowedValues: ['dev', 'staging', 'prod']
-    Description: 'Environment name'
+    Default: "prod"
+    AllowedValues: ["dev", "staging", "prod"]
+    Description: "Environment name"
 
 Resources:
   # S3 Buckets for document storage
   DocumentStorageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${ProjectName}-documents-${Environment}'
+      BucketName: !Sub "${ProjectName}-documents-${Environment}"
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:
@@ -34,7 +34,7 @@ Resources:
   JobDataBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${ProjectName}-job-data-${Environment}'
+      BucketName: !Sub "${ProjectName}-job-data-${Environment}"
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:
@@ -51,9 +51,9 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-lambda-execution-role'
+      RoleName: !Sub "${ProjectName}-lambda-execution-role"
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -64,16 +64,16 @@ Resources:
       Policies:
         - PolicyName: BedrockAccess
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - bedrock:InvokeModel
                   - bedrock:InvokeModelWithResponseStream
-                Resource: '*'
+                Resource: "*"
         - PolicyName: S3Access
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -81,8 +81,8 @@ Resources:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource:
-                  - !Sub '${DocumentStorageBucket}/*'
-                  - !Sub '${JobDataBucket}/*'
+                  - !Sub "${DocumentStorageBucket}/*"
+                  - !Sub "${JobDataBucket}/*"
               - Effect: Allow
                 Action:
                   - s3:ListBucket
@@ -91,22 +91,22 @@ Resources:
                   - !Ref JobDataBucket
         - PolicyName: SNSSESAccess
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - sns:Publish
                   - ses:SendEmail
                   - ses:SendRawEmail
-                Resource: '*'
+                Resource: "*"
 
   # IAM Role for Bedrock Agent
   BedrockAgentRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'AmazonBedrockExecutionRoleForAgents_${ProjectName}'
+      RoleName: !Sub "AmazonBedrockExecutionRoleForAgents_${ProjectName}"
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -115,12 +115,12 @@ Resources:
       Policies:
         - PolicyName: BedrockAgentPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - bedrock:InvokeModel
-                Resource: '*'
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
@@ -133,7 +133,7 @@ Resources:
   MarketIntelligenceFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub '${ProjectName}-market-intelligence'
+      FunctionName: !Sub "${ProjectName}-market-intelligence"
       Runtime: python3.11
       Handler: market_intelligence.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -152,7 +152,7 @@ Resources:
   JobSearchFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub '${ProjectName}-job-search'
+      FunctionName: !Sub "${ProjectName}-job-search"
       Runtime: python3.11
       Handler: job_search_agent.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -171,7 +171,7 @@ Resources:
   ResumeOptimizerFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub '${ProjectName}-resume-optimizer'
+      FunctionName: !Sub "${ProjectName}-resume-optimizer"
       Runtime: python3.11
       Handler: resume_optimizer.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -194,7 +194,7 @@ Resources:
       FunctionName: !Ref MarketIntelligenceFunction
       Action: lambda:InvokeFunction
       Principal: bedrock.amazonaws.com
-      SourceArn: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*'
+      SourceArn: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*"
 
   JobSearchPermission:
     Type: AWS::Lambda::Permission
@@ -202,7 +202,7 @@ Resources:
       FunctionName: !Ref JobSearchFunction
       Action: lambda:InvokeFunction
       Principal: bedrock.amazonaws.com
-      SourceArn: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*'
+      SourceArn: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*"
 
   ResumeOptimizerPermission:
     Type: AWS::Lambda::Permission
@@ -210,26 +210,26 @@ Resources:
       FunctionName: !Ref ResumeOptimizerFunction
       Action: lambda:InvokeFunction
       Principal: bedrock.amazonaws.com
-      SourceArn: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*'
+      SourceArn: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*"
 
   # SNS Topic for notifications
   JobNotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: !Sub '${ProjectName}-job-notifications'
-      DisplayName: 'AI Career Agent Job Notifications'
+      TopicName: !Sub "${ProjectName}-job-notifications"
+      DisplayName: "AI Career Agent Job Notifications"
 
   # EventBridge Rule for daily job search
   DailyJobSearchRule:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Sub '${ProjectName}-daily-job-search'
-      Description: 'Trigger daily job search for all active users'
-      ScheduleExpression: 'cron(0 9 * * ? *)'  # Daily at 9 AM UTC
+      Name: !Sub "${ProjectName}-daily-job-search"
+      Description: "Trigger daily job search for all active users"
+      ScheduleExpression: "cron(0 9 * * ? *)" # Daily at 9 AM UTC
       State: ENABLED
       Targets:
         - Arn: !GetAtt JobSearchFunction.Arn
-          Id: 'DailyJobSearchTarget'
+          Id: "DailyJobSearchTarget"
           Input: '{"trigger": "daily_search"}'
 
   # Permission for EventBridge to invoke Lambda
@@ -243,43 +243,43 @@ Resources:
 
 Outputs:
   DocumentBucketName:
-    Description: 'S3 bucket for document storage'
+    Description: "S3 bucket for document storage"
     Value: !Ref DocumentStorageBucket
     Export:
-      Name: !Sub '${ProjectName}-document-bucket'
+      Name: !Sub "${ProjectName}-document-bucket"
 
   JobDataBucketName:
-    Description: 'S3 bucket for job data storage'
+    Description: "S3 bucket for job data storage"
     Value: !Ref JobDataBucket
     Export:
-      Name: !Sub '${ProjectName}-job-data-bucket'
+      Name: !Sub "${ProjectName}-job-data-bucket"
 
   BedrockAgentRoleArn:
-    Description: 'ARN of the Bedrock Agent execution role'
+    Description: "ARN of the Bedrock Agent execution role"
     Value: !GetAtt BedrockAgentRole.Arn
     Export:
-      Name: !Sub '${ProjectName}-bedrock-agent-role-arn'
+      Name: !Sub "${ProjectName}-bedrock-agent-role-arn"
 
   MarketIntelligenceFunctionArn:
-    Description: 'ARN of the Market Intelligence Lambda function'
+    Description: "ARN of the Market Intelligence Lambda function"
     Value: !GetAtt MarketIntelligenceFunction.Arn
     Export:
-      Name: !Sub '${ProjectName}-market-intelligence-function-arn'
+      Name: !Sub "${ProjectName}-market-intelligence-function-arn"
 
   JobSearchFunctionArn:
-    Description: 'ARN of the Job Search Lambda function'
+    Description: "ARN of the Job Search Lambda function"
     Value: !GetAtt JobSearchFunction.Arn
     Export:
-      Name: !Sub '${ProjectName}-job-search-function-arn'
+      Name: !Sub "${ProjectName}-job-search-function-arn"
 
   ResumeOptimizerFunctionArn:
-    Description: 'ARN of the Resume Optimizer Lambda function'
+    Description: "ARN of the Resume Optimizer Lambda function"
     Value: !GetAtt ResumeOptimizerFunction.Arn
     Export:
-      Name: !Sub '${ProjectName}-resume-optimizer-function-arn'
+      Name: !Sub "${ProjectName}-resume-optimizer-function-arn"
 
   NotificationTopicArn:
-    Description: 'ARN of the SNS notification topic'
+    Description: "ARN of the SNS notification topic"
     Value: !Ref JobNotificationTopic
     Export:
-      Name: !Sub '${ProjectName}-notification-topic-arn'
+      Name: !Sub "${ProjectName}-notification-topic-arn"
