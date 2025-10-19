@@ -9,17 +9,15 @@ import time
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="AI Career Agent",
-    page_icon="🤖",
+    page_title="AI Career Agent - Your Dream Job Awaits",
+    page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for professional styling
+# Custom CSS for professional styling with enhanced header/footer
 st.markdown("""
 <style>
-    /* Use system fonts for better performance */
-    
     /* Water & Rust Color Theme */
     :root {
         --primary-dark: #151F30;
@@ -31,75 +29,203 @@ st.markdown("""
         --text-secondary: #103778;
         --background-light: #f8f9fa;
         --background-white: #ffffff;
+        --header-footer-bg: linear-gradient(135deg, var(--primary-teal) 0%, var(--primary-blue) 100%);
     }
     
     /* Global Styles */
     .main {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding-top: 0 !important;
     }
     
-    /* Smooth scrolling for navigation */
-    html {
-        scroll-behavior: smooth;
-    }
-    
-    /* Header Styling */
-    .main-header {
-        background: linear-gradient(135deg, var(--primary-teal) 0%, var(--primary-blue) 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
+    /* Professional Header */
+    .professional-header {
+        background: var(--header-footer-bg);
+        padding: 1rem 2rem;
+        margin: -1rem -1rem 2rem -1rem;
         color: white;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(21, 31, 48, 0.2);
+        box-shadow: 0 4px 20px rgba(21, 31, 48, 0.3);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
     }
     
-    .main-header h1 {
-        font-size: 3rem;
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .logo-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .logo-section h1 {
+        margin: 0;
+        font-size: 1.8rem;
         font-weight: 700;
-        margin-bottom: 0.5rem;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }
     
-    .main-header p {
-        font-size: 1.2rem;
-        opacity: 0.9;
-        margin-bottom: 0;
+    .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
     }
     
-    /* Card Styling */
-    .metric-card {
+    .nav-item {
+        color: white;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    /* Dropdown Menu */
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .dropdown-content {
+        display: none;
+        position: absolute;
         background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(21, 31, 48, 0.1);
-        border-left: 4px solid var(--primary-teal);
+        min-width: 200px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        border-radius: 8px;
+        z-index: 1001;
+        top: 100%;
+        right: 0;
+    }
+    
+    .dropdown:hover .dropdown-content {
+        display: block;
+    }
+    
+    .dropdown-item {
+        color: var(--text-primary);
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        transition: background 0.3s ease;
+    }
+    
+    .dropdown-item:hover {
+        background: var(--background-light);
+    }
+    
+    /* Professional Footer */
+    .professional-footer {
+        background: var(--header-footer-bg);
+        color: white;
+        padding: 2rem;
+        margin: 3rem -1rem -1rem -1rem;
+        text-align: center;
+    }
+    
+    .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        text-align: left;
+    }
+    
+    .footer-section h3 {
         margin-bottom: 1rem;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        color: white;
     }
     
-    .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(21, 31, 48, 0.15);
-    }
-    
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: var(--primary-teal);
+    .footer-section p, .footer-section a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
         margin-bottom: 0.5rem;
     }
     
-    .metric-label {
-        font-size: 1rem;
-        color: var(--text-secondary);
-        font-weight: 500;
+    .footer-section a:hover {
+        color: white;
+    }
+    
+    /* Modal/Popup Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(21, 31, 48, 0.7);
+        backdrop-filter: blur(5px);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        max-width: 500px;
+        width: 90%;
+        animation: modalSlideIn 0.3s ease;
+    }
+    
+    @keyframes modalSlideIn {
+        from { transform: translateY(-50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    /* Graduation Timeline Cards */
+    .timeline-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(21, 31, 48, 0.1);
+        margin: 1rem 0;
+        border-left: 5px solid var(--primary-teal);
+        transition: transform 0.3s ease;
+    }
+    
+    .timeline-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .urgency-high {
+        border-left-color: var(--accent-red);
+        background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+    }
+    
+    .urgency-medium {
+        border-left-color: var(--accent-orange);
+        background: linear-gradient(135deg, #fff 0%, #fffaf0 100%);
+    }
+    
+    .urgency-low {
+        border-left-color: var(--primary-teal);
+        background: linear-gradient(135deg, #fff 0%, #f0fffe 100%);
     }
     
     /* Hide Streamlit Branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    .stDeployButton {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -140,20 +266,337 @@ def create_sample_data():
     
     return job_trends, salary_data, skills_data, geo_data
 
-def main():
-    """Main application entry point"""
-    st.title("🤖 AI Career Agent Dashboard")
-    st.markdown("### Data-driven insights for your career success")
+def render_header():
+    """Render professional header with navigation"""
+    st.markdown("""
+    <div class="professional-header">
+        <div class="header-content">
+            <div class="logo-section">
+                <span style="font-size: 2rem;">🎓</span>
+                <h1>AI Career Agent</h1>
+            </div>
+            <div class="nav-menu">
+                <div class="nav-item">
+                    <span>🏠</span> Home
+                </div>
+                <div class="nav-item">
+                    <span>📊</span> Dashboard
+                </div>
+                <div class="nav-item">
+                    <span>💼</span> Jobs
+                </div>
+                <div class="dropdown">
+                    <div class="nav-item">
+                        <span>⚙️</span> Services ▼
+                    </div>
+                    <div class="dropdown-content">
+                        <a href="#" class="dropdown-item">🎯 Career Planning</a>
+                        <a href="#" class="dropdown-item">📝 Resume Optimization</a>
+                        <a href="#" class="dropdown-item">🔍 Job Search</a>
+                        <a href="#" class="dropdown-item">📈 Market Intelligence</a>
+                        <a href="#" class="dropdown-item">🎤 Interview Prep</a>
+                        <a href="#" class="dropdown-item">📚 Skill Development</a>
+                    </div>
+                </div>
+                <div class="nav-item">
+                    <span>📞</span> Contact
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def render_footer():
+    """Render professional footer"""
+    st.markdown("""
+    <div class="professional-footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>🎓 AI Career Agent</h3>
+                <p>Empowering students and graduates to land their dream jobs through intelligent automation and personalized career guidance.</p>
+                <p>© 2024 AI Career Agent. All rights reserved.</p>
+            </div>
+            <div class="footer-section">
+                <h3>🚀 Services</h3>
+                <a href="#">Automated Job Search</a><br>
+                <a href="#">Resume Optimization</a><br>
+                <a href="#">Interview Scheduling</a><br>
+                <a href="#">Market Intelligence</a><br>
+                <a href="#">Career Planning</a>
+            </div>
+            <div class="footer-section">
+                <h3>📞 Contact</h3>
+                <p>📧 support@aicareeragent.com</p>
+                <p>📱 +1 (555) 123-4567</p>
+                <p>🌐 www.aicareeragent.com</p>
+                <p>📍 San Francisco, CA</p>
+            </div>
+            <div class="footer-section">
+                <h3>🔗 Connect</h3>
+                <a href="#">LinkedIn</a><br>
+                <a href="#">Twitter</a><br>
+                <a href="#">GitHub</a><br>
+                <a href="#">Blog</a><br>
+                <a href="#">Help Center</a>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def calculate_graduation_urgency(graduation_date):
+    """Calculate urgency level based on graduation date"""
+    today = datetime.now()
+    days_until_graduation = (graduation_date - today).days
+    
+    if days_until_graduation < 0:
+        return "graduate", abs(days_until_graduation), "high"
+    elif days_until_graduation <= 90:  # 3 months
+        return "urgent", days_until_graduation, "high"
+    elif days_until_graduation <= 180:  # 6 months
+        return "prepare", days_until_graduation, "medium"
+    else:
+        return "plan", days_until_graduation, "low"
+
+def render_graduation_popup():
+    """Render graduation date popup modal"""
+    if 'show_popup' not in st.session_state:
+        st.session_state.show_popup = True
+    
+    if st.session_state.show_popup:
+        st.markdown("""
+        <div class="modal-overlay" id="graduationModal">
+            <div class="modal-content">
+                <h2 style="text-align: center; color: var(--primary-blue); margin-bottom: 1.5rem;">
+                    🎓 Welcome to AI Career Agent
+                </h2>
+                <p style="text-align: center; margin-bottom: 2rem;">
+                    Let's personalize your career journey based on your graduation timeline
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Create form in the modal area
+        with st.form("graduation_form", clear_on_submit=True):
+            st.markdown("### 📅 Tell us about your graduation")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                student_status = st.selectbox(
+                    "Current Status",
+                    ["Current Student", "Recent Graduate", "Active Job Seeker"],
+                    help="Select your current academic/professional status"
+                )
+            
+            with col2:
+                if student_status == "Current Student":
+                    graduation_date = st.date_input(
+                        "Expected Graduation Date",
+                        min_value=datetime.now().date(),
+                        max_value=datetime.now().date() + timedelta(days=1460),  # 4 years
+                        help="When do you expect to graduate?"
+                    )
+                else:
+                    graduation_date = st.date_input(
+                        "Graduation Date",
+                        max_value=datetime.now().date(),
+                        help="When did you graduate?"
+                    )
+            
+            st.markdown("### 💼 Dream Job Details")
+            dream_job = st.text_input(
+                "Describe your dream job",
+                placeholder="e.g., Machine Learning Engineer at a tech company in San Francisco",
+                help="Be specific about role, industry, and location preferences"
+            )
+            
+            col3, col4 = st.columns(2)
+            with col3:
+                availability_date = st.date_input(
+                    "Available for Interviews",
+                    min_value=datetime.now().date(),
+                    help="When can you start taking interview calls?"
+                )
+            
+            with col4:
+                preferred_time = st.selectbox(
+                    "Preferred Interview Time",
+                    ["Morning (9 AM - 12 PM)", "Afternoon (1 PM - 5 PM)", "Evening (6 PM - 8 PM)", "Flexible"],
+                    help="When do you prefer to take interview calls?"
+                )
+            
+            submitted = st.form_submit_button("🚀 Start My Career Journey", use_container_width=True)
+            
+            if submitted and dream_job:
+                st.session_state.show_popup = False
+                st.session_state.user_profile = {
+                    'status': student_status,
+                    'graduation_date': graduation_date,
+                    'dream_job': dream_job,
+                    'availability_date': availability_date,
+                    'preferred_time': preferred_time
+                }
+                st.rerun()
+
+def render_personalized_dashboard():
+    """Render dashboard based on user's graduation timeline"""
+    profile = st.session_state.user_profile
+    graduation_date = datetime.combine(profile['graduation_date'], datetime.min.time())
+    
+    status, days, urgency = calculate_graduation_urgency(graduation_date)
+    
+    # Display personalized header
+    if status == "graduate":
+        st.markdown(f"""
+        <div class="timeline-card urgency-{urgency}">
+            <h2>🎉 Welcome Graduate!</h2>
+            <p><strong>You graduated {days} days ago.</strong> Let's accelerate your job search with AI-powered automation!</p>
+            <p><strong>Dream Job:</strong> {profile['dream_job']}</p>
+            <p><strong>Interview Availability:</strong> {profile['availability_date']} ({profile['preferred_time']})</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Show job search focused dashboard
+        render_job_search_dashboard()
+        
+    elif status == "urgent":
+        st.markdown(f"""
+        <div class="timeline-card urgency-{urgency}">
+            <h2>🚨 Urgent: {days} Days Until Graduation!</h2>
+            <p><strong>Time to focus on job search!</strong> Let's get you interview-ready and start applying immediately.</p>
+            <p><strong>Dream Job:</strong> {profile['dream_job']}</p>
+            <p><strong>Priority:</strong> Resume optimization, active job applications, interview prep</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        render_job_search_dashboard()
+        
+    elif status == "prepare":
+        st.markdown(f"""
+        <div class="timeline-card urgency-{urgency}">
+            <h2>⏰ {days} Days Until Graduation</h2>
+            <p><strong>Perfect timing to prepare!</strong> Let's analyze the market and build your skills strategically.</p>
+            <p><strong>Dream Job:</strong> {profile['dream_job']}</p>
+            <p><strong>Focus:</strong> Market analysis, skill development, network building</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        render_market_analysis_dashboard()
+        
+    else:  # plan
+        st.markdown(f"""
+        <div class="timeline-card urgency-{urgency}">
+            <h2>📚 {days} Days Until Graduation</h2>
+            <p><strong>Great! You have time to plan strategically.</strong> Let's explore the market and identify key skills to develop.</p>
+            <p><strong>Dream Job:</strong> {profile['dream_job']}</p>
+            <p><strong>Focus:</strong> Long-term planning, skill roadmap, market trends</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        render_market_analysis_dashboard()
+
+def render_job_search_dashboard():
+    """Dashboard focused on immediate job search"""
+    st.markdown("## 🎯 Job Search Command Center")
+    
+    # Key metrics for job search
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("🔍 Jobs Found Today", "23", "+5")
+    with col2:
+        st.metric("📝 Applications Sent", "12", "+3")
+    with col3:
+        st.metric("📞 Interview Calls", "4", "+2")
+    with col4:
+        st.metric("✅ Response Rate", "33%", "+8%")
+    
+    # Recent job matches
+    st.markdown("### 🎯 Today's Top Job Matches")
+    job_matches = pd.DataFrame({
+        'Company': ['Google', 'Microsoft', 'Amazon', 'Meta', 'Apple'],
+        'Position': ['ML Engineer', 'Software Engineer', 'Data Scientist', 'Product Manager', 'iOS Developer'],
+        'Match Score': [95, 92, 89, 87, 85],
+        'Salary Range': ['$120K-$180K', '$110K-$160K', '$130K-$190K', '$140K-$200K', '$115K-$170K'],
+        'Status': ['Applied ✅', 'Ready to Apply 🚀', 'Applied ✅', 'Ready to Apply 🚀', 'Interview Scheduled 📞']
+    })
+    
+    st.dataframe(job_matches, use_container_width=True)
+    
+    # Application automation status
+    st.markdown("### 🤖 AI Agent Activity")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info("🔄 **Currently Running:** Daily job search across 15 platforms")
+        st.success("✅ **Completed:** Resume tailored for 3 new positions")
+        st.warning("⏳ **Pending:** 2 applications awaiting your review")
+    
+    with col2:
+        st.markdown("**📅 Upcoming Interviews:**")
+        st.markdown("- **Tomorrow 2 PM:** Google - ML Engineer")
+        st.markdown("- **Friday 10 AM:** Microsoft - Software Engineer")
+        st.markdown("- **Next Monday 3 PM:** Amazon - Data Scientist")
+
+def render_market_analysis_dashboard():
+    """Dashboard focused on market analysis and preparation"""
+    st.markdown("## 📊 Market Intelligence & Career Planning")
     
     # Generate sample data
     job_trends, salary_data, skills_data, geo_data = create_sample_data()
     
-    # Sidebar for navigation
-    st.sidebar.title("📊 Dashboard Navigation")
-    selected_view = st.sidebar.selectbox(
-        "Choose Analysis View",
-        ["Market Trends", "Salary Analysis", "Skills Intelligence", "Geographic Insights", "Career Planner"]
-    )
+    # Market overview for dream job
+    st.markdown("### 🎯 Your Dream Job Market Analysis")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📈 Market Growth", "+25%", "vs last year")
+    with col2:
+        st.metric("💰 Avg Salary", "$145K", "+12% YoY")
+    with col3:
+        st.metric("🤖 AI Replacement Risk", "Low", "15% in 10 years")
+    
+    # Skills gap analysis
+    st.markdown("### 🎯 Skills You Need to Develop")
+    
+    skills_gap = pd.DataFrame({
+        'Skill': ['Python', 'Machine Learning', 'AWS', 'Docker', 'Kubernetes'],
+        'Current Level': [70, 60, 40, 30, 20],
+        'Required Level': [90, 85, 80, 70, 60],
+        'Priority': ['High', 'High', 'Medium', 'Medium', 'Low'],
+        'Time to Learn': ['2 months', '4 months', '3 months', '2 months', '3 months']
+    })
+    
+    fig = px.bar(skills_gap, x='Skill', y=['Current Level', 'Required Level'], 
+                 title="Skills Gap Analysis", barmode='group')
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Career progression timeline
+    st.markdown("### 📈 Career Progression Roadmap")
+    
+    timeline_data = pd.DataFrame({
+        'Stage': ['Junior (0-2 years)', 'Mid-level (3-5 years)', 'Senior (6-10 years)', 'Lead (10+ years)'],
+        'Salary Range': ['$80K-$120K', '$120K-$180K', '$180K-$250K', '$250K-$400K'],
+        'Key Skills': [
+            'Programming, Basic ML',
+            'Advanced ML, System Design',
+            'Architecture, Team Leadership',
+            'Strategy, Org Leadership'
+        ]
+    })
+    
+    st.dataframe(timeline_data, use_container_width=True)
+
+def main():
+    """Main application entry point"""
+    render_header()
+    
+    # Check if user has completed onboarding
+    if 'user_profile' not in st.session_state:
+        render_graduation_popup()
+    else:
+        render_personalized_dashboard()
+    
+    render_footer()
     
     if selected_view == "Market Trends":
         st.header("📈 Job Market Trends")
