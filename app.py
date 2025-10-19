@@ -1,5 +1,4 @@
 import streamlit as st
-import boto3
 import json
 from datetime import datetime, timedelta
 import pandas as pd
