@@ -776,7 +776,7 @@ def render_navigation():
     col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([1, 1, 1, 1, 1, 1, 0.5, 1.5])
     
     with col1:
-        if st.button("🏠 Home", use_container_width=True):
+        if st.button("🏠 Home", use_container_width=True, key="nav_home_1"):
             st.session_state.current_nav_page = 'home'
             st.rerun()
     
@@ -877,12 +877,10 @@ def render_home_page():
     """, unsafe_allow_html=True)
     
     # Interactive CTA Buttons
+    # Professional call-to-action section
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # Test button first
-        if st.button("🧪 TEST BUTTON", use_container_width=True):
-            st.balloons()
-            st.success("✅ Buttons are working!")
+        st.markdown("### 🚀 Ready to Transform Your Career?")
         
         # Main CTA button
         if st.button("🚀 START FREE TRIAL", use_container_width=True, type="primary"):
@@ -1058,27 +1056,27 @@ def render_main_app():
     col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
     
     with col1:
-        if st.button("🏠 Home", use_container_width=True):
+        if st.button("🏠 Home", use_container_width=True, key="nav_home_2"):
             st.session_state.current_page = 'Home'
     
     with col2:
-        if st.button("📊 Dashboard", use_container_width=True):
+        if st.button("📊 Dashboard", use_container_width=True, key="nav_dashboard_landing"):
             st.session_state.current_page = 'Dashboard'
     
     with col3:
-        if st.button("💼 Jobs", use_container_width=True):
+        if st.button("💼 Jobs", use_container_width=True, key="nav_jobs_landing"):
             st.session_state.current_page = 'Jobs'
     
     with col4:
-        if st.button("🎯 Career Plan", use_container_width=True):
+        if st.button("🎯 Career Plan", use_container_width=True, key="nav_career_landing"):
             st.session_state.current_page = 'Career Plan'
     
     with col5:
-        if st.button("📝 Resume", use_container_width=True):
+        if st.button("📝 Resume", use_container_width=True, key="nav_resume_landing"):
             st.session_state.current_page = 'Resume'
     
     with col6:
-        if st.button("📧 Notifications", use_container_width=True):
+        if st.button("📧 Notifications", use_container_width=True, key="nav_notifications_landing"):
             st.session_state.current_page = 'Notifications'
     
     with col7:

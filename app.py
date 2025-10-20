@@ -291,32 +291,32 @@ def render_header():
     col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
     
     with col1:
-        if st.button("🏠 Home", use_container_width=True):
+        if st.button("🏠 Home", use_container_width=True, key="app_home"):
             st.session_state.current_page = 'Home'
             st.rerun()
     
     with col2:
-        if st.button("📊 Dashboard", use_container_width=True):
+        if st.button("📊 Dashboard", use_container_width=True, key="nav_dashboard_app"):
             st.session_state.current_page = 'Dashboard'
             st.rerun()
     
     with col3:
-        if st.button("💼 Jobs", use_container_width=True):
+        if st.button("💼 Jobs", use_container_width=True, key="nav_jobs_app"):
             st.session_state.current_page = 'Jobs'
             st.rerun()
     
     with col4:
-        if st.button("🎯 Career Plan", use_container_width=True):
+        if st.button("🎯 Career Plan", use_container_width=True, key="nav_career_app"):
             st.session_state.current_page = 'Career Plan'
             st.rerun()
     
     with col5:
-        if st.button("📝 Resume", use_container_width=True):
+        if st.button("📝 Resume", use_container_width=True, key="nav_resume_app"):
             st.session_state.current_page = 'Resume'
             st.rerun()
     
     with col6:
-        if st.button("📧 Notifications", use_container_width=True):
+        if st.button("📧 Notifications", use_container_width=True, key="nav_notifications_app"):
             st.session_state.current_page = 'Notifications'
             st.rerun()
     
@@ -839,10 +839,8 @@ def render_graduation_popup():
         </div>
         """, unsafe_allow_html=True)
         
-        # Simple test first
-        if st.button("🚀 Test Button - Click Me!"):
-            st.success("✅ Great! Buttons are working. Now let's set up your profile.")
-            st.balloons()
+        # Welcome message
+        st.success("✅ Welcome! Let's set up your AI Career Agent profile.")
         
         # Create form
         with st.form("graduation_form", clear_on_submit=True):

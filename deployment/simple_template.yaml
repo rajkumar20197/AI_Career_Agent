@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AI Career Agent - Simple AWS Infrastructure for Hackathon"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: "ai-career-agent"
+    Description: "Name of the project"
+
+Resources:
+  # S3 Bucket for documents
+  DocumentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-documents-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # IAM Role for Lambda
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "${DocumentBucket}/*"
+
+  # Lambda Function - Job Search
+  JobSearchFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-job-search"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({
+                      'message': 'AI Career Agent Job Search Function',
+                      'jobs_found': 25,
+                      'status': 'active'
+                  })
+              }
+      Timeout: 60
+
+  # Lambda Function - Resume Optimizer
+  ResumeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-resume-optimizer"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({
+                      'message': 'AI Resume Optimizer Function',
+                      'ats_score': 92,
+                      'improvements': 5
+                  })
+              }
+      Timeout: 60
+
+  # SNS Topic for notifications
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ProjectName}-notifications"
+      DisplayName: "AI Career Agent Notifications"
+
+Outputs:
+  DocumentBucketName:
+    Description: "S3 Bucket for documents"
+    Value: !Ref DocumentBucket
+    Export:
+      Name: !Sub "${ProjectName}-document-bucket"
+
+  JobSearchFunctionArn:
+    Description: "Job Search Lambda Function ARN"
+    Value: !GetAtt JobSearchFunction.Arn
+    Export:
+      Name: !Sub "${ProjectName}-job-search-arn"
+
+  ResumeFunctionArn:
+    Description: "Resume Optimizer Lambda Function ARN"
+    Value: !GetAtt ResumeFunction.Arn
+    Export:
+      Name: !Sub "${ProjectName}-resume-optimizer-arn"
+
+  NotificationTopicArn:
+    Description: "SNS Topic ARN"
+    Value: !Ref NotificationTopic
+    Export:
+      Name: !Sub "${ProjectName}-notifications-arn"
