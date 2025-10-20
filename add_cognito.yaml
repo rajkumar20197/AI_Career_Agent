@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Add Amazon Cognito authentication to existing ai-career-agent-demo"
+
+Resources:
+  # Create Cognito User Pool
+  CareerAgentUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: "ai-career-agent-users"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: given_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+        - Name: family_name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+
+  # Create User Pool Client
+  CareerAgentUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CareerAgentUserPool
+      ClientName: "ai-career-agent-client"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ADMIN_NO_SRP_AUTH
+        - USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - "http://localhost:8501" # For Streamlit local development
+        - "https://your-domain.com" # Replace with your actual domain
+      LogoutURLs:
+        - "http://localhost:8501"
+        - "https://your-domain.com"
+
+  # Create Identity Pool for AWS SDK access
+  CareerAgentIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: "ai_career_agent_identity_pool"
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref CareerAgentUserPoolClient
+          ProviderName: !GetAtt CareerAgentUserPool.ProviderName
+
+  # IAM Role for authenticated users
+  CognitoAuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud": !Ref CareerAgentIdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": authenticated
+      Policies:
+        - PolicyName: CognitoAuthenticatedPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - execute-api:Invoke
+                Resource: "*"
+
+  # Attach roles to identity pool
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref CareerAgentIdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthenticatedRole.Arn
+
+Outputs:
+  UserPoolId:
+    Description: "Cognito User Pool ID"
+    Value: !Ref CareerAgentUserPool
+    Export:
+      Name: "CareerAgent-UserPoolId"
+
+  UserPoolClientId:
+    Description: "Cognito User Pool Client ID"
+    Value: !Ref CareerAgentUserPoolClient
+    Export:
+      Name: "CareerAgent-UserPoolClientId"
+
+  IdentityPoolId:
+    Description: "Cognito Identity Pool ID"
+    Value: !Ref CareerAgentIdentityPool
+    Export:
+      Name: "CareerAgent-IdentityPoolId"
+
+  UserPoolArn:
+    Description: "Cognito User Pool ARN"
+    Value: !GetAtt CareerAgentUserPool.Arn
+    Export:
+      Name: "CareerAgent-UserPoolArn"

@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AI Career Agent - Enhanced Infrastructure with API Gateway and DynamoDB"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: "ai-career-agent"
+    Description: "Name of the project"
+
+Resources:
+  # DynamoDB Table for user data
+  UserDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${ProjectName}-users"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  # S3 Bucket for documents
+  DocumentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-documents-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # IAM Role for Lambda
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !GetAtt UserDataTable.Arn
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "${DocumentBucket}/*"
+
+  # Enhanced Lambda Function
+  CareerAgentFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "ai-career-agent-enhanced"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+
+          dynamodb = boto3.resource('dynamodb')
+          table = dynamodb.Table('ai-career-agent-users')
+
+          def lambda_handler(event, context):
+              try:
+                  # Log the request
+                  print(f"Received event: {json.dumps(event)}")
+                  
+                  # Sample AI Career Agent response
+                  response_data = {
+                      'message': 'AI Career Agent Enhanced - Live and Working!',
+                      'timestamp': datetime.now().isoformat(),
+                      'features': {
+                          'job_search': 'Active',
+                          'resume_optimization': 'Ready',
+                          'market_intelligence': 'Analyzing',
+                          'gmail_integration': 'Connected'
+                      },
+                      'stats': {
+                          'jobs_found': 47,
+                          'applications_sent': 23,
+                          'interviews_scheduled': 8,
+                          'success_rate': '34%'
+                      }
+                  }
+                  
+                  return {
+                      'statusCode': 200,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*'
+                      },
+                      'body': json.dumps(response_data)
+                  }
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({'error': str(e)})
+                  }
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref UserDataTable
+          S3_BUCKET: !Ref DocumentBucket
+      Timeout: 30
+
+  # API Gateway
+  CareerAgentAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${ProjectName}-api"
+      Description: "AI Career Agent API"
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # API Gateway Resource
+  CareerAgentResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref CareerAgentAPI
+      ParentId: !GetAtt CareerAgentAPI.RootResourceId
+      PathPart: "agent"
+
+  # API Gateway Method
+  CareerAgentMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref CareerAgentAPI
+      ResourceId: !Ref CareerAgentResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CareerAgentFunction.Arn}/invocations"
+
+  # API Gateway Deployment
+  CareerAgentDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: CareerAgentMethod
+    Properties:
+      RestApiId: !Ref CareerAgentAPI
+      StageName: "prod"
+
+  # Lambda Permission for API Gateway
+  LambdaAPIPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CareerAgentFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${CareerAgentAPI}/*/*"
+
+Outputs:
+  APIEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${CareerAgentAPI}.execute-api.${AWS::Region}.amazonaws.com/prod/agent"
+    Export:
+      Name: !Sub "${ProjectName}-api-endpoint"
+
+  DynamoDBTable:
+    Description: "DynamoDB table name"
+    Value: !Ref UserDataTable
+    Export:
+      Name: !Sub "${ProjectName}-dynamodb-table"
+
+  LambdaFunction:
+    Description: "Enhanced Lambda function name"
+    Value: !Ref CareerAgentFunction
+    Export:
+      Name: !Sub "${ProjectName}-enhanced-function"

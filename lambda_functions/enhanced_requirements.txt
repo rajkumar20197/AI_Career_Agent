@@ -1,0 +1,129 @@
+# Enhanced AI Career Agent Lambda Requirements
+# Core AWS SDK and utilities
+boto3==1.34.0
+botocore==1.34.0
+
+# AI and Machine Learning
+anthropic==0.7.8
+openai==1.3.8
+
+# Search and Analytics
+opensearch-py==2.4.0
+elasticsearch==8.11.0
+aws-requests-auth==0.4.3
+
+# Document Processing
+PyPDF2==3.0.1
+python-docx==1.1.0
+pdfplumber==0.10.3
+python-magic==0.4.27
+
+# Data Processing and Analysis
+pandas==2.1.4
+numpy==1.24.4
+scipy==1.11.4
+scikit-learn==1.3.2
+
+# Web Scraping and HTTP
+requests==2.31.0
+beautifulsoup4==4.12.2
+selenium==4.16.0
+aiohttp==3.9.1
+
+# Text Processing and NLP
+nltk==3.8.1
+spacy==3.7.2
+textblob==0.17.1
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.23.0
+
+# Date and Time Processing
+python-dateutil==2.8.2
+pytz==2023.3
+
+# JSON and Data Serialization
+jsonschema==4.20.0
+marshmallow==3.20.1
+
+# Logging and Monitoring
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Utilities
+pydantic==2.5.2
+typing-extensions==4.8.0
+urllib3==2.1.0
+
+# Email and Communication
+sendgrid==6.10.0
+twilio==8.11.1
+
+# Image Processing (for resume parsing)
+Pillow==10.1.0
+pytesseract==0.3.10
+
+# Async Processing
+asyncio==3.4.3
+aiofiles==23.2.1
+
+# Configuration Management
+python-decouple==3.8
+pyyaml==6.0.1
+
+# Testing (for development)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+moto==4.2.14
+
+# Security and Encryption
+cryptography==41.0.8
+bcrypt==4.1.2
+
+# Performance and Caching
+redis==5.0.1
+memcached==1.59
+
+# Database Connectivity
+psycopg2-binary==2.9.9
+pymongo==4.6.0
+
+# API Development
+fastapi==0.104.1
+uvicorn==0.24.0
+
+# Data Validation
+cerberus==1.3.5
+voluptuous==0.14.1
+
+# Networking and HTTP
+httpx==0.25.2
+websockets==12.0
+
+# File Processing
+openpyxl==3.1.2
+xlsxwriter==3.1.9
+
+# Geographic and Location
+geopy==2.4.1
+pycountry==23.12.7
+
+# Machine Learning Utilities
+joblib==1.3.2
+pickle5==0.0.12
+
+# Development and Debugging
+ipython==8.18.1
+debugpy==1.8.0
+
+# AWS Specific
+aws-lambda-powertools==2.28.0
+aws-xray-sdk==2.12.1
+
+# Serverless Framework Support
+serverless-wsgi==3.0.3
+
+# Additional Utilities for Enhanced Features
+phonenumbers==8.13.26
+email-validator==2.1.0
+user-agents==2.2.0
+fake-useragent==1.4.0

@@ -1,0 +1,111 @@
+# CloudFormation template to enhance your existing ai-career-agent-demo
+# This adds Cognito authentication to your existing API Gateway
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Enhance existing ai-career-agent-demo with Cognito authentication"
+
+Parameters:
+  ExistingFunctionName:
+    Type: String
+    Default: "ai-career-agent-demo"
+    Description: "Name of your existing Lambda function"
+
+  ExistingApiGatewayId:
+    Type: String
+    Description: "ID of your existing API Gateway (get from AWS Console)"
+
+Resources:
+  # Add Cognito User Pool to existing setup
+  CareerAgentUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: "ai-career-agent-users"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+
+  CareerAgentUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CareerAgentUserPool
+      ClientName: "ai-career-agent-client"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ADMIN_NO_SRP_AUTH
+        - USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  # Add Cognito Authorizer to existing API Gateway
+  CognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: "CareerAgentAuthorizer"
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      RestApiId: !Ref ExistingApiGatewayId
+      ProviderARNs:
+        - !GetAtt CareerAgentUserPool.Arn
+
+  # Enhanced IAM role for your existing function
+  EnhancedLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "ai-career-agent-enhanced-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
+      Policies:
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: "*"
+        - PolicyName: EnhancedDynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: "*"
+
+Outputs:
+  UserPoolId:
+    Description: "Cognito User Pool ID"
+    Value: !Ref CareerAgentUserPool
+    Export:
+      Name: "CareerAgent-UserPoolId"
+
+  UserPoolClientId:
+    Description: "Cognito User Pool Client ID"
+    Value: !Ref CareerAgentUserPoolClient
+    Export:
+      Name: "CareerAgent-UserPoolClientId"
+
+  AuthorizerId:
+    Description: "API Gateway Authorizer ID"
+    Value: !Ref CognitoAuthorizer
+    Export:
+      Name: "CareerAgent-AuthorizerId"

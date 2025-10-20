@@ -1,0 +1,474 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Add Amazon OpenSearch Service to ai-career-agent-demo"
+
+Resources:
+  # OpenSearch Domain
+  CareerAgentSearchDomain:
+    Type: AWS::OpenSearch::Domain
+    Properties:
+      DomainName: "ai-career-agent-search"
+      EngineVersion: "OpenSearch_2.3"
+      ClusterConfig:
+        InstanceType: "t3.small.search"
+        InstanceCount: 1
+        DedicatedMasterEnabled: false
+      EBSOptions:
+        EBSEnabled: true
+        VolumeType: "gp3"
+        VolumeSize: 20
+      EncryptionAtRestOptions:
+        Enabled: true
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+      DomainEndpointOptions:
+        EnforceHTTPS: true
+      AccessPolicies:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "es:*"
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/ai-career-agent-search/*"
+
+  # Lambda function to index data in OpenSearch
+  OpenSearchIndexerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-opensearch-indexer"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt OpenSearchIndexerRole.Arn
+      Timeout: 300
+      Environment:
+        Variables:
+          OPENSEARCH_ENDPOINT: !GetAtt CareerAgentSearchDomain.DomainEndpoint
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import requests
+          from datetime import datetime
+          import os
+          from requests.auth import HTTPBasicAuth
+
+          def lambda_handler(event, context):
+              """
+              Index job data and user profiles in OpenSearch
+              Triggered by DynamoDB streams or direct API calls
+              """
+              
+              opensearch_endpoint = f"https://{os.environ['OPENSEARCH_ENDPOINT']}"
+              
+              try:
+                  if 'Records' in event:
+                      # DynamoDB Stream trigger
+                      return handle_dynamodb_stream(event, opensearch_endpoint)
+                  else:
+                      # Direct API call
+                      return handle_direct_indexing(event, opensearch_endpoint)
+                      
+              except Exception as e:
+                  print(f"OpenSearch indexing error: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({'error': str(e)})
+                  }
+
+          def handle_dynamodb_stream(event, opensearch_endpoint):
+              """Handle DynamoDB stream events"""
+              
+              indexed_records = []
+              
+              for record in event['Records']:
+                  event_name = record['eventName']
+                  
+                  if event_name in ['INSERT', 'MODIFY']:
+                      # Index new or updated records
+                      dynamodb_record = record['dynamodb']
+                      
+                      # Extract data from DynamoDB record
+                      if 'NewImage' in dynamodb_record:
+                          data = parse_dynamodb_item(dynamodb_record['NewImage'])
+                          
+                          # Determine index and document type
+                          index_name, doc_type = determine_index_info(data)
+                          
+                          # Index in OpenSearch
+                          result = index_document(
+                              opensearch_endpoint, 
+                              index_name, 
+                              doc_type, 
+                              data
+                          )
+                          
+                          indexed_records.append({
+                              'eventName': event_name,
+                              'index': index_name,
+                              'result': result
+                          })
+                  
+                  elif event_name == 'REMOVE':
+                      # Remove from OpenSearch
+                      dynamodb_record = record['dynamodb']
+                      if 'OldImage' in dynamodb_record:
+                          data = parse_dynamodb_item(dynamodb_record['OldImage'])
+                          index_name, doc_type = determine_index_info(data)
+                          
+                          # Delete from OpenSearch
+                          result = delete_document(
+                              opensearch_endpoint,
+                              index_name,
+                              data.get('id', 'unknown')
+                          )
+                          
+                          indexed_records.append({
+                              'eventName': event_name,
+                              'index': index_name,
+                              'result': result
+                          })
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({
+                      'message': 'DynamoDB stream processed',
+                      'indexed_records': len(indexed_records),
+                      'details': indexed_records
+                  })
+              }
+
+          def handle_direct_indexing(event, opensearch_endpoint):
+              """Handle direct indexing requests"""
+              
+              data = event.get('data', {})
+              index_name = event.get('index', 'career-agent-default')
+              doc_type = event.get('type', 'document')
+              
+              result = index_document(opensearch_endpoint, index_name, doc_type, data)
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({
+                      'message': 'Document indexed successfully',
+                      'result': result
+                  })
+              }
+
+          def parse_dynamodb_item(dynamodb_item):
+              """Parse DynamoDB item format to regular dict"""
+              
+              def parse_value(value):
+                  if 'S' in value:
+                      return value['S']
+                  elif 'N' in value:
+                      return float(value['N'])
+                  elif 'BOOL' in value:
+                      return value['BOOL']
+                  elif 'L' in value:
+                      return [parse_value(item) for item in value['L']]
+                  elif 'M' in value:
+                      return {k: parse_value(v) for k, v in value['M'].items()}
+                  else:
+                      return str(value)
+              
+              return {k: parse_value(v) for k, v in dynamodb_item.items()}
+
+          def determine_index_info(data):
+              """Determine OpenSearch index and document type"""
+              
+              # Determine based on data structure
+              if 'job_title' in data or 'company' in data:
+                  return 'jobs', 'job_posting'
+              elif 'user_id' in data or 'email' in data:
+                  return 'users', 'user_profile'
+              elif 'search_id' in data:
+                  return 'searches', 'job_search'
+              else:
+                  return 'general', 'document'
+
+          def index_document(endpoint, index_name, doc_type, data):
+              """Index document in OpenSearch"""
+              
+              # Create index if it doesn't exist
+              create_index_if_not_exists(endpoint, index_name)
+              
+              # Generate document ID
+              doc_id = data.get('id', f"{doc_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+              
+              # Index document
+              url = f"{endpoint}/{index_name}/_doc/{doc_id}"
+              
+              # Add timestamp
+              data['indexed_at'] = datetime.now().isoformat()
+              
+              response = requests.put(
+                  url,
+                  json=data,
+                  headers={'Content-Type': 'application/json'}
+              )
+              
+              return {
+                  'status_code': response.status_code,
+                  'doc_id': doc_id,
+                  'index': index_name
+              }
+
+          def delete_document(endpoint, index_name, doc_id):
+              """Delete document from OpenSearch"""
+              
+              url = f"{endpoint}/{index_name}/_doc/{doc_id}"
+              
+              response = requests.delete(url)
+              
+              return {
+                  'status_code': response.status_code,
+                  'doc_id': doc_id,
+                  'index': index_name
+              }
+
+          def create_index_if_not_exists(endpoint, index_name):
+              """Create OpenSearch index with proper mappings"""
+              
+              # Check if index exists
+              response = requests.head(f"{endpoint}/{index_name}")
+              
+              if response.status_code == 404:
+                  # Create index with mappings
+                  mappings = get_index_mappings(index_name)
+                  
+                  response = requests.put(
+                      f"{endpoint}/{index_name}",
+                      json=mappings,
+                      headers={'Content-Type': 'application/json'}
+                  )
+                  
+                  print(f"Created index {index_name}: {response.status_code}")
+
+          def get_index_mappings(index_name):
+              """Get appropriate mappings for different index types"""
+              
+              if index_name == 'jobs':
+                  return {
+                      "mappings": {
+                          "properties": {
+                              "job_title": {"type": "text", "analyzer": "standard"},
+                              "company": {"type": "text", "analyzer": "standard"},
+                              "location": {"type": "keyword"},
+                              "salary_min": {"type": "integer"},
+                              "salary_max": {"type": "integer"},
+                              "skills": {"type": "keyword"},
+                              "description": {"type": "text", "analyzer": "standard"},
+                              "remote_friendly": {"type": "boolean"},
+                              "posted_date": {"type": "date"},
+                              "indexed_at": {"type": "date"}
+                          }
+                      }
+                  }
+              elif index_name == 'users':
+                  return {
+                      "mappings": {
+                          "properties": {
+                              "user_id": {"type": "keyword"},
+                              "email": {"type": "keyword"},
+                              "skills": {"type": "keyword"},
+                              "experience_level": {"type": "keyword"},
+                              "location": {"type": "keyword"},
+                              "job_preferences": {"type": "text"},
+                              "indexed_at": {"type": "date"}
+                          }
+                      }
+                  }
+              else:
+                  return {
+                      "mappings": {
+                          "properties": {
+                              "content": {"type": "text", "analyzer": "standard"},
+                              "indexed_at": {"type": "date"}
+                          }
+                      }
+                  }
+
+  # Search API Function
+  OpenSearchAPIFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-search-api"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt OpenSearchIndexerRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          OPENSEARCH_ENDPOINT: !GetAtt CareerAgentSearchDomain.DomainEndpoint
+      Code:
+        ZipFile: |
+          import json
+          import requests
+          import os
+          from urllib.parse import quote
+
+          def lambda_handler(event, context):
+              """
+              Search API for OpenSearch
+              Provides powerful search capabilities for jobs and users
+              """
+              
+              opensearch_endpoint = f"https://{os.environ['OPENSEARCH_ENDPOINT']}"
+              
+              try:
+                  # Parse query parameters
+                  query_params = event.get('queryStringParameters', {}) or {}
+                  
+                  search_type = query_params.get('type', 'jobs')
+                  query = query_params.get('q', '')
+                  location = query_params.get('location', '')
+                  skills = query_params.get('skills', '')
+                  salary_min = query_params.get('salary_min', '')
+                  salary_max = query_params.get('salary_max', '')
+                  
+                  # Build search query
+                  search_query = build_search_query(
+                      search_type, query, location, skills, salary_min, salary_max
+                  )
+                  
+                  # Execute search
+                  results = execute_search(opensearch_endpoint, search_type, search_query)
+                  
+                  return {
+                      'statusCode': 200,
+                      'headers': {
+                          'Content-Type': 'application/json',
+                          'Access-Control-Allow-Origin': '*'
+                      },
+                      'body': json.dumps({
+                          'search_results': results,
+                          'query_parameters': query_params,
+                          'total_results': len(results.get('hits', {}).get('hits', []))
+                      })
+                  }
+                  
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'body': json.dumps({'error': str(e)})
+                  }
+
+          def build_search_query(search_type, query, location, skills, salary_min, salary_max):
+              """Build OpenSearch query based on parameters"""
+              
+              must_clauses = []
+              filter_clauses = []
+              
+              # Text search
+              if query:
+                  must_clauses.append({
+                      "multi_match": {
+                          "query": query,
+                          "fields": ["job_title^2", "company", "description", "skills"]
+                      }
+                  })
+              
+              # Location filter
+              if location:
+                  filter_clauses.append({
+                      "bool": {
+                          "should": [
+                              {"term": {"location": location}},
+                              {"term": {"remote_friendly": True}}
+                          ]
+                      }
+                  })
+              
+              # Skills filter
+              if skills:
+                  skill_list = [skill.strip() for skill in skills.split(',')]
+                  filter_clauses.append({
+                      "terms": {"skills": skill_list}
+                  })
+              
+              # Salary range filter
+              if salary_min or salary_max:
+                  salary_filter = {"range": {"salary_max": {}}}
+                  if salary_min:
+                      salary_filter["range"]["salary_max"]["gte"] = int(salary_min)
+                  if salary_max:
+                      salary_filter["range"]["salary_min"] = {"lte": int(salary_max)}
+                  filter_clauses.append(salary_filter)
+              
+              # Combine clauses
+              search_query = {
+                  "query": {
+                      "bool": {
+                          "must": must_clauses if must_clauses else [{"match_all": {}}],
+                          "filter": filter_clauses
+                      }
+                  },
+                  "sort": [
+                      {"_score": {"order": "desc"}},
+                      {"posted_date": {"order": "desc"}}
+                  ],
+                  "size": 50
+              }
+              
+              return search_query
+
+          def execute_search(endpoint, index_name, search_query):
+              """Execute search against OpenSearch"""
+              
+              url = f"{endpoint}/{index_name}/_search"
+              
+              response = requests.post(
+                  url,
+                  json=search_query,
+                  headers={'Content-Type': 'application/json'}
+              )
+              
+              if response.status_code == 200:
+                  return response.json()
+              else:
+                  raise Exception(f"Search failed: {response.status_code} - {response.text}")
+
+  # IAM Role for OpenSearch functions
+  OpenSearchIndexerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: OpenSearchAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - es:ESHttpPost
+                  - es:ESHttpPut
+                  - es:ESHttpGet
+                  - es:ESHttpDelete
+                Resource: !Sub "${CareerAgentSearchDomain.Arn}/*"
+
+Outputs:
+  OpenSearchEndpoint:
+    Description: "OpenSearch Domain Endpoint"
+    Value: !GetAtt CareerAgentSearchDomain.DomainEndpoint
+    Export:
+      Name: "CareerAgent-OpenSearch-Endpoint"
+
+  IndexerFunctionArn:
+    Description: "OpenSearch Indexer Function ARN"
+    Value: !GetAtt OpenSearchIndexerFunction.Arn
+    Export:
+      Name: "CareerAgent-Indexer-Function-ARN"
+
+  SearchAPIFunctionArn:
+    Description: "Search API Function ARN"
+    Value: !GetAtt OpenSearchAPIFunction.Arn
+    Export:
+      Name: "CareerAgent-Search-API-ARN"

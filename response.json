@@ -1,1 +1,1 @@
-{"statusCode": 200, "body": "\"AI Career Agent is working!\""}
+{"statusCode": 200, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": "{\"message\": \"AI Career Agent - System Operational\", \"features\": [\"AI-powered job search\", \"Resume analysis and optimization\", \"Market intelligence\", \"S3 resume processing\", \"Real-time data insights\"], \"ai_status\": \"Bedrock integration active\", \"timestamp\": \"2025-10-20T15:33:26.704316\"}"}

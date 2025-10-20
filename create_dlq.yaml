@@ -1,0 +1,190 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create Dead Letter Queue for ai-career-agent-demo"
+
+Resources:
+  # Main Dead Letter Queue
+  CareerAgentDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "ai-career-agent-dlq"
+      MessageRetentionPeriod: 1209600 # 14 days
+      VisibilityTimeoutSeconds: 60
+      Tags:
+        - Key: "Purpose"
+          Value: "Dead Letter Queue for failed messages"
+
+  # Processing Queue with DLQ configuration
+  CareerAgentProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "ai-career-agent-processing"
+      VisibilityTimeoutSeconds: 300 # 5 minutes (longer than Lambda timeout)
+      MessageRetentionPeriod: 1209600 # 14 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt CareerAgentDLQ.Arn
+        maxReceiveCount: 3 # Retry 3 times before sending to DLQ
+      Tags:
+        - Key: "Purpose"
+          Value: "Main processing queue with DLQ"
+
+  # DLQ Alarm for monitoring failed messages
+  DLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: "ai-career-agent-dlq-messages"
+      AlarmDescription: "Alert when messages appear in DLQ"
+      MetricName: "ApproximateNumberOfVisibleMessages"
+      Namespace: "AWS/SQS"
+      Statistic: "Sum"
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      Dimensions:
+        - Name: "QueueName"
+          Value: !GetAtt CareerAgentDLQ.QueueName
+      AlarmActions:
+        - !Ref DLQNotificationTopic
+
+  # SNS Topic for DLQ notifications
+  DLQNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: "ai-career-agent-dlq-alerts"
+      DisplayName: "Career Agent DLQ Alerts"
+
+  # Lambda function to process DLQ messages
+  DLQProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "ai-career-agent-dlq-processor"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt DLQProcessorRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              """
+              Process messages from Dead Letter Queue
+              Log errors and optionally retry or alert
+              """
+              
+              cloudwatch = boto3.client('cloudwatch')
+              
+              processed_messages = []
+              
+              for record in event['Records']:
+                  try:
+                      message_body = json.loads(record['body'])
+                      receipt_handle = record['receiptHandle']
+                      
+                      # Log the failed message
+                      print(f"Processing DLQ message: {json.dumps(message_body, indent=2)}")
+                      
+                      # Send custom metric
+                      cloudwatch.put_metric_data(
+                          Namespace='CareerAgent/DLQ',
+                          MetricData=[
+                              {
+                                  'MetricName': 'FailedMessages',
+                                  'Value': 1,
+                                  'Unit': 'Count',
+                                  'Timestamp': datetime.now()
+                              }
+                          ]
+                      )
+                      
+                      # Analyze failure reason
+                      failure_analysis = analyze_failure(message_body)
+                      
+                      processed_messages.append({
+                          'messageId': record.get('messageId'),
+                          'failure_reason': failure_analysis,
+                          'processed_at': datetime.now().isoformat()
+                      })
+                      
+                  except Exception as e:
+                      print(f"Error processing DLQ message: {str(e)}")
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({
+                      'processed_messages': len(processed_messages),
+                      'details': processed_messages
+                  })
+              }
+
+          def analyze_failure(message_body):
+              """Analyze why the message failed"""
+              
+              # Common failure patterns
+              if 'timeout' in str(message_body).lower():
+                  return 'timeout_error'
+              elif 'bedrock' in str(message_body).lower():
+                  return 'ai_service_error'
+              elif 'dynamodb' in str(message_body).lower():
+                  return 'database_error'
+              else:
+                  return 'unknown_error'
+
+  # IAM Role for DLQ Processor
+  DLQProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DLQProcessorPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt CareerAgentDLQ.Arn
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+
+  # Event Source Mapping for DLQ Processor
+  DLQEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt CareerAgentDLQ.Arn
+      FunctionName: !Ref DLQProcessorFunction
+      BatchSize: 5
+      MaximumBatchingWindowInSeconds: 10
+
+Outputs:
+  DLQUrl:
+    Description: "Dead Letter Queue URL"
+    Value: !Ref CareerAgentDLQ
+    Export:
+      Name: "CareerAgent-DLQ-URL"
+
+  ProcessingQueueUrl:
+    Description: "Main Processing Queue URL"
+    Value: !Ref CareerAgentProcessingQueue
+    Export:
+      Name: "CareerAgent-Processing-Queue-URL"
+
+  DLQArn:
+    Description: "Dead Letter Queue ARN"
+    Value: !GetAtt CareerAgentDLQ.Arn
+    Export:
+      Name: "CareerAgent-DLQ-ARN"

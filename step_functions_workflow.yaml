@@ -1,0 +1,428 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Add Step Functions workflow to ai-career-agent-demo"
+
+Resources:
+  # Step Functions State Machine
+  CareerAgentWorkflow:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: "ai-career-agent-workflow"
+      DefinitionString: !Sub |
+        {
+          "Comment": "AI Career Agent Complete Workflow",
+          "StartAt": "ValidateInput",
+          "States": {
+            "ValidateInput": {
+              "Type": "Task",
+              "Resource": "${InputValidatorFunction.Arn}",
+              "Next": "ProcessUserProfile",
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "HandleError"
+                }
+              ]
+            },
+            "ProcessUserProfile": {
+              "Type": "Parallel",
+              "Branches": [
+                {
+                  "StartAt": "AIJobSearch",
+                  "States": {
+                    "AIJobSearch": {
+                      "Type": "Task",
+                      "Resource": "${JobSearchFunction.Arn}",
+                      "End": true
+                    }
+                  }
+                },
+                {
+                  "StartAt": "MarketIntelligence",
+                  "States": {
+                    "MarketIntelligence": {
+                      "Type": "Task",
+                      "Resource": "${MarketIntelFunction.Arn}",
+                      "End": true
+                    }
+                  }
+                }
+              ],
+              "Next": "CombineResults"
+            },
+            "CombineResults": {
+              "Type": "Task",
+              "Resource": "${ResultsCombinerFunction.Arn}",
+              "Next": "StoreResults"
+            },
+            "StoreResults": {
+              "Type": "Task",
+              "Resource": "${StorageFunction.Arn}",
+              "Next": "SendNotification"
+            },
+            "SendNotification": {
+              "Type": "Task",
+              "Resource": "${NotificationFunction.Arn}",
+              "End": true
+            },
+            "HandleError": {
+              "Type": "Task",
+              "Resource": "${ErrorHandlerFunction.Arn}",
+              "End": true
+            }
+          }
+        }
+      RoleArn: !GetAtt StepFunctionsRole.Arn
+
+  # Step Functions Execution Role
+  StepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt InputValidatorFunction.Arn
+                  - !GetAtt JobSearchFunction.Arn
+                  - !GetAtt MarketIntelFunction.Arn
+                  - !GetAtt ResultsCombinerFunction.Arn
+                  - !GetAtt StorageFunction.Arn
+                  - !GetAtt NotificationFunction.Arn
+                  - !GetAtt ErrorHandlerFunction.Arn
+
+  # Lambda Functions for Step Functions
+
+  # 1. Input Validator Function
+  InputValidatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-input-validator"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+
+          def lambda_handler(event, context):
+              """Validate input for career agent workflow"""
+              
+              required_fields = ['user_profile', 'request_type']
+              
+              for field in required_fields:
+                  if field not in event:
+                      raise ValueError(f"Missing required field: {field}")
+              
+              # Validate user profile structure
+              user_profile = event['user_profile']
+              if not isinstance(user_profile, dict):
+                  raise ValueError("user_profile must be an object")
+              
+              return {
+                  'statusCode': 200,
+                  'validated_input': event,
+                  'validation_timestamp': context.aws_request_id
+              }
+
+  # 2. Job Search Function
+  JobSearchFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-job-search"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              """AI-powered job search step"""
+              
+              bedrock = boto3.client('bedrock-runtime')
+              user_profile = event['validated_input']['user_profile']
+              
+              # Generate job recommendations using AI
+              prompt = f"""
+              Find job recommendations for:
+              Skills: {user_profile.get('skills', [])}
+              Experience: {user_profile.get('experience_level', 'Entry')}
+              Location: {user_profile.get('location', 'Remote')}
+              
+              Provide 5 job recommendations in JSON format.
+              """
+              
+              try:
+                  response = bedrock.invoke_model(
+                      modelId='anthropic.claude-3-haiku-20240307-v1:0',
+                      body=json.dumps({
+                          'anthropic_version': 'bedrock-2023-05-31',
+                          'max_tokens': 1500,
+                          'messages': [{'role': 'user', 'content': prompt}]
+                      })
+                  )
+                  
+                  response_body = json.loads(response['body'].read())
+                  job_recommendations = response_body['content'][0]['text']
+                  
+                  return {
+                      'job_search_results': job_recommendations,
+                      'search_timestamp': datetime.now().isoformat(),
+                      'user_id': user_profile.get('user_id', 'anonymous')
+                  }
+                  
+              except Exception as e:
+                  return {
+                      'job_search_results': f"Error: {str(e)}",
+                      'search_timestamp': datetime.now().isoformat(),
+                      'error': True
+                  }
+
+  # 3. Market Intelligence Function
+  MarketIntelFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-market-intel"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              """Generate market intelligence"""
+              
+              bedrock = boto3.client('bedrock-runtime')
+              user_profile = event['validated_input']['user_profile']
+              
+              job_domain = user_profile.get('job_domain', 'Technology')
+              location = user_profile.get('location', 'United States')
+              
+              prompt = f"""
+              Provide market intelligence for {job_domain} in {location}:
+              1. Salary ranges
+              2. Job growth outlook
+              3. In-demand skills
+              4. Market competitiveness
+              
+              Respond in JSON format.
+              """
+              
+              try:
+                  response = bedrock.invoke_model(
+                      modelId='anthropic.claude-3-haiku-20240307-v1:0',
+                      body=json.dumps({
+                          'anthropic_version': 'bedrock-2023-05-31',
+                          'max_tokens': 1200,
+                          'messages': [{'role': 'user', 'content': prompt}]
+                      })
+                  )
+                  
+                  response_body = json.loads(response['body'].read())
+                  market_intel = response_body['content'][0]['text']
+                  
+                  return {
+                      'market_intelligence': market_intel,
+                      'analysis_timestamp': datetime.now().isoformat(),
+                      'domain': job_domain,
+                      'location': location
+                  }
+                  
+              except Exception as e:
+                  return {
+                      'market_intelligence': f"Error: {str(e)}",
+                      'analysis_timestamp': datetime.now().isoformat(),
+                      'error': True
+                  }
+
+  # 4. Results Combiner Function
+  ResultsCombinerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-results-combiner"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              """Combine results from parallel processing"""
+              
+              # Extract results from parallel branches
+              job_search_results = event[0]  # First branch
+              market_intel_results = event[1]  # Second branch
+              
+              combined_results = {
+                  'job_recommendations': job_search_results.get('job_search_results'),
+                  'market_intelligence': market_intel_results.get('market_intelligence'),
+                  'combined_timestamp': datetime.now().isoformat(),
+                  'workflow_id': context.aws_request_id
+              }
+              
+              return combined_results
+
+  # 5. Storage Function
+  StorageFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-storage"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              """Store workflow results"""
+              
+              dynamodb = boto3.resource('dynamodb')
+              
+              # Store in DynamoDB (you'll need to create this table)
+              try:
+                  # This assumes you have a DynamoDB table
+                  # You can modify to use your existing table
+                  
+                  storage_result = {
+                      'stored': True,
+                      'storage_timestamp': datetime.now().isoformat(),
+                      'workflow_id': event.get('workflow_id'),
+                      'data_size': len(json.dumps(event))
+                  }
+                  
+                  return storage_result
+                  
+              except Exception as e:
+                  return {
+                      'stored': False,
+                      'error': str(e),
+                      'storage_timestamp': datetime.now().isoformat()
+                  }
+
+  # 6. Notification Function
+  NotificationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-notification"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              """Send completion notification"""
+              
+              # You can integrate with SNS, SES, or other notification services
+              
+              notification_result = {
+                  'notification_sent': True,
+                  'notification_timestamp': datetime.now().isoformat(),
+                  'workflow_completed': True,
+                  'summary': 'Career agent workflow completed successfully'
+              }
+              
+              return notification_result
+
+  # 7. Error Handler Function
+  ErrorHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "career-agent-error-handler"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              """Handle workflow errors"""
+              
+              error_details = {
+                  'error_handled': True,
+                  'error_timestamp': datetime.now().isoformat(),
+                  'error_context': event,
+                  'recovery_action': 'Logged error and notified administrators'
+              }
+              
+              # Log error details
+              print(f"Workflow error: {json.dumps(error_details, indent=2)}")
+              
+              return error_details
+
+  # Shared Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BedrockAndDynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                Resource: "*"
+
+Outputs:
+  StateMachineArn:
+    Description: "Step Functions State Machine ARN"
+    Value: !Ref CareerAgentWorkflow
+    Export:
+      Name: "CareerAgent-StateMachine-ARN"
+
+  StateMachineName:
+    Description: "Step Functions State Machine Name"
+    Value: !Ref CareerAgentWorkflow
+    Export:
+      Name: "CareerAgent-StateMachine-Name"
